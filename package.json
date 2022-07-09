@@ -1,0 +1,16 @@
+{
+  "name": "Demo",
+  "version": "1.0.0",
+  "keywords": [
+    "util",
+    "functional",
+    "server",
+    "client",
+    "browser"
+  ],
+  "author": "Kishan Tripathi",
+  "contributors": [],
+  "dependencies": {
+    "js-priority-queue": "^0.1.5"
+  }
+}

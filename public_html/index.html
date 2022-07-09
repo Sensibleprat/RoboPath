@@ -1,0 +1,560 @@
+<head>
+  <link rel="stylesheet" href="css/normalize.css" type="text/css"/>
+  <link rel="stylesheet" href="css/main.css" type="text/css">
+
+
+  <title>PRM/RRT Demo</title>
+  <meta charset="UTF-8" />
+  <meta name="author" content="Kishan Tripathi" />
+
+  <style>
+    .inv {
+      display: none;
+    }
+  </style>
+</head>
+<body onload="clear_canvas()">
+  <div style="float: left">
+    <canvas
+      id="map"
+      width="1000"
+      height="1000"
+      style="cursor: crosshair"
+      data-imgsrc="image.jpg"
+      onmousedown="point_it(event)"
+      oncontextmenu="return false;"
+      >
+      Your browser does not support the HTML5 canvas tag.
+    </canvas>
+  </div>
+  <div id = "obstacle_drawing" style="float: left; margin-left: 20px">
+    <div>
+      <button
+        id ="undoButton"
+        onclick="undo()">
+        Undo
+      </button>
+      <button 
+        id ="clearButton"
+        onclick="clear_canvas()"
+        >
+        Add New
+      </button>
+      <p>Press <strong>Left Click</strong> to draw a point.</p>
+      <p>
+        <strong>CTRL+Click</strong> or <strong>Right Click</strong> to close
+        the polygon.
+      </p>
+    </div>
+    <div>
+      <p><strong>Coordinates:</strong></p>
+      <textarea
+        id="coordinates"
+        disabled="disabled"
+        style="width: 300px; height: 200px"
+        ></textarea>
+    </div>
+
+    <div>
+      <button onclick="deleteMapEditor()">Finalize Map</button>
+    </div>
+  </div>
+
+  <p></p>
+  <div id = "editConfig" hidden style="float: left; margin-left: 20px">
+    <label>Robot Type: </label>
+    <select id="robotType" name="Robot Type" disabled>
+      <option value="Point_robot">Point robot</option>
+      <option value="Rectangular_robot">Rectangular robot</option>
+      <option value="Link_Manipulator">Link Manipulator</option>
+    </select>
+
+    <button onclick="
+        this.parentNode.removeChild(this);
+        document.getElementById('robotType').disabled = true;
+        document.getElementById(document.getElementById('robotType').value).removeAttribute('hidden');
+        document.getElementById('setGoalButton').disabled = false;
+        document.getElementById('setSourceButton').disabled = false;
+        showSourceGoalConfig();
+            ">
+      Set Configuration
+    </button>
+
+    <div id="Point_robot" hidden>
+      <p>
+        Goal X Coordinate : 
+        <input id = "pointGoalXCoordinate" type="number" step="any" value = 500 
+               onchange="minmax(this, 0, 1000);
+                   updateSourceGoal();">
+      </p>
+
+      <p>
+        Goal Y Coordinate : 
+        <input id = "pointGoalYCoordinate" type="number" step="0.1" value = 500 
+               onchange="minmax(this, 0, 1000);
+                   updateSourceGoal();">
+      </p>
+
+      <p>
+        Source X Coordinate : 
+        <input id = "pointSourceXCoordinate" type="number" step=".01" value = 500 
+               onchange="minmax(this, 0, 1000);
+                   updateSourceGoal();">
+      </p>
+
+      <p>
+        Source Y Coordinate : 
+        <input id = "pointSourceYCoordinate" type="number" step="0.1" value = 500 
+               onchange="minmax(this, 0, 1000);
+                   updateSourceGoal();">
+      </p>
+    </div>
+    <div id="Rectangular_robot" hidden>
+      <p>
+        Goal X Coordinate : 
+        <input id = "rectGoalXCoordinate" type="number" step=".01" value = 500 onchange="minmax(this, 0, 1000);
+            updateSourceGoal()">
+      </p>
+
+      <p>
+        Goal Y Coordinate : 
+        <input id = "rectGoalYCoordinate" type="number" step="0.1" value = 500 onchange="minmax(this, 0, 1000);
+            updateSourceGoal()">
+      </p>
+      <p>
+        Goal Theta : <span id="rectGoalThetaDisplay">3.14</span>
+      <div class="slidecontainer">
+        0 
+        <input id = "rectGoalThetaSlider" type="range" step="0.01" min="0" max=6.28 value=3.14 class="slider" 
+               oninput="document.getElementById('rectGoalThetaDisplay').innerText = parseFloat(this.value).toFixed(2);
+               updateSourceGoal();">
+        2 <span>&#960;</span>
+      </div>
+      <p>
+        Source X Coordinate : 
+        <input id = "rectSourceXCoordinate" type="number" step=".01" value = 500 onchange="minmax(this, 0, 1000);
+            updateSourceGoal()">
+      </p>
+      <p>
+        Source Y Coordinate : 
+        <input id = "rectSourceYCoordinate" type="number" step="0.1" value = 500 onchange="minmax(this, 0, 1000);
+            updateSourceGoal()">
+      </p>
+      <p>
+        Goal Theta : <span id="rectSourceThetaDisplay">3.14</span>
+      <div class="slidecontainer">
+        0 
+        <input id = "rectSourceThetaSlider" type="range" step = "0.01" min="0" max=6.28 value=3.14 class="slider"
+               oninput="document.getElementById('rectSourceThetaDisplay').innerText = parseFloat(this.value).toFixed(2);
+               updateSourceGoal();">
+        2 <span>&#960;</span><!-- PI -->
+      </div>
+
+
+    </div>
+    <div id="Link_Manipulator" hidden>
+      Content 3
+    </div>
+    <br>
+
+    <button
+      id ="setGoalButton"
+      disabled
+      onclick="
+          updateSourceGoal();
+          checkAndCloseSourceGoal(true);">
+      Set Goal
+    </button>
+
+    <button 
+      id ="setSourceButton"
+      disabled
+      onclick="
+          updateSourceGoal();
+          checkAndCloseSourceGoal(false);
+      ">
+      Set Source
+    </button>
+
+    <p>
+      <button
+        id ="PRMButton"
+        onclick="this.disabled = true;
+            document.getElementById('RRTButton').disabled = true;
+            run(0);
+        " disabled>
+        PRM
+      </button>
+
+      <button
+        id ="RRTButton"
+        onclick="this.disabled = true;
+            document.getElementById('PRMButton').disabled = true;
+            run(1);
+        " disabled>
+        RRT
+      </button>
+    <div>
+
+    </div>
+  </div>
+
+  <script src ="./js/Node.js"></script>
+  <script src ="./js/State.js"></script>
+  <script src ="./js/NodeFactory.js"></script>
+  <script src ="./js/Geometry.js"></script>
+  <script src ="./js/Config.js"></script>
+  <script src ="./js/Point.js"></script>
+  <script src ="./js/map.js"></script>
+  <script src="./js/kdTree.js"></script>
+  <script src="./js/obstacleList.js"></script>
+  <script src="./js/jPolygon.js"></script>
+  <script src="./js/priority-queue.js"></script>
+  <script>
+          var selectedRobotType;
+          var drawingObstacles = 1;
+          var goalConfig;
+          var sourceConfig;
+          var points = new Array();
+          var edges = new Array();
+          var path;
+          var k = 5;
+          var prec = 1.0;
+          var drawPrec = 14.0;
+          var stepSize = 15;
+
+
+          function render(canvas) {
+            ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawObstacles(ctx);
+            if (Boolean(drawingObstacles)) {
+              renderPolygon(ctx);
+            }
+            points.forEach(node => {
+              node.config.render(ctx, "blue");
+            });
+            edges.forEach(edge => {
+              goalConfig.renderEdge(edge[0].config, edge[1].config, ctx, "cyan");
+            });
+            if (path != null) {
+              goalConfig.renderPath(path, ctx, "orange", drawPrec);
+            }
+            if (goalConfig != null) {
+              goalConfig.render(ctx, "red");
+            }
+            if (sourceConfig != null) {
+              sourceConfig.render(ctx, "green");
+            }
+            setTimeout(render, 500, canvas);
+          }
+
+          function stopDrawingObstacles() {
+            drawingObstacles = 0;
+          }
+          function pi() {
+            return Math.PI;
+          }
+
+          function minmax(input, min, max) {
+            var value = parseFloat(input.value).toFixed(2);
+            if (value < min) {
+              value = min;
+            }
+            if (value > max) {
+              value = max;
+            }
+            input.value = value;
+          }
+
+          function deleteMapEditor() {
+            var obstacle = document.getElementById("obstacle_drawing");
+            obstacle.parentNode.removeChild(obstacle);
+            document.getElementById("robotType").disabled = false;
+            var editConfig = document.getElementById("editConfig");
+            editConfig.removeAttribute("hidden");
+            document.getElementById("map").onmousedown = "";
+            stopDrawingObstacles();
+          }
+          render(document.getElementById("map"));
+
+          function showSourceGoalConfig() {
+            selectedRobotType = document.getElementById("robotType").value;
+            if (selectedRobotType === "Point_robot") {
+              goalConfig = new PointRobot(new Point(500, 500));
+              sourceConfig = new PointRobot(new Point(500, 500));
+            } else if (selectedRobotType === "Rectangular_robot") {
+              goalConfig = new RectangularRobot(new Point(500, 500), Math.PI / 2);
+              sourceConfig = new RectangularRobot(new Point(500, 500), Math.PI);
+            }
+          }
+
+          function updateSourceGoal() {
+            if (selectedRobotType === "Point_robot") {
+              let goalx = parseFloat(document.getElementById("pointGoalXCoordinate").value);
+              let goaly = parseFloat(document.getElementById("pointGoalYCoordinate").value);
+              let sourcex = parseFloat(document.getElementById("pointSourceXCoordinate").value);
+              let sourcey = parseFloat(document.getElementById("pointSourceYCoordinate").value);
+              goalConfig.point = new Point(goalx, goaly);
+              sourceConfig.point = new Point(sourcex, sourcey);
+            } else if (selectedRobotType === "Rectangular_robot") {
+              let goalx = parseFloat(document.getElementById("rectGoalXCoordinate").value);
+              let goaly = parseFloat(document.getElementById("rectGoalYCoordinate").value);
+              let goalTheta = parseFloat(document.getElementById("rectGoalThetaSlider").value);
+              let sourcex = parseFloat(document.getElementById("rectSourceXCoordinate").value);
+              let sourcey = parseFloat(document.getElementById("rectSourceYCoordinate").value);
+              let sourceTheta = parseFloat(document.getElementById("rectSourceThetaSlider").value);
+              goalConfig = new RectangularRobot(new Point(goalx, goaly), goalTheta);
+              sourceConfig = new RectangularRobot(new Point(sourcex, sourcey), sourceTheta);
+            }
+          }
+
+          function checkAndCloseSourceGoal(checkingGoal) {
+            if (checkingGoal) {
+              if (goalConfig.isValid()) {
+                document.getElementById("setGoalButton").disabled = true;
+                if (selectedRobotType === "Point_robot") {
+                  document.getElementById("pointGoalXCoordinate").disabled = true;
+                  document.getElementById("pointGoalYCoordinate").disabled = true;
+                } else if (selectedRobotType === "Rectangular_robot") {
+                  document.getElementById("rectGoalXCoordinate").disabled = true;
+                  document.getElementById("rectGoalYCoordinate").disabled = true;
+                  document.getElementById("rectGoalThetaSlider").disabled = true;
+                }
+                if (document.getElementById("setSourceButton").disabled) {
+                  document.getElementById("PRMButton").disabled = false;
+                  document.getElementById("RRTButton").disabled = false;
+                }
+              } else {
+                alert('Goal configuration Invalid');
+              }
+            } else {
+              if (sourceConfig.isValid()) {
+                document.getElementById('setSourceButton').disabled = true;
+                if (selectedRobotType === "Point_robot") {
+                  document.getElementById("pointSourceXCoordinate").disabled = true;
+                  document.getElementById("pointSourceYCoordinate").disabled = true;
+                } else if (selectedRobotType === "Rectangular_robot") {
+                  document.getElementById("rectSourceXCoordinate").disabled = true;
+                  document.getElementById("rectSourceYCoordinate").disabled = true;
+                  document.getElementById("rectSourceThetaSlider").disabled = true;
+                }
+                if (document.getElementById("setGoalButton").disabled) {
+                  document.getElementById("PRMButton").disabled = false;
+                  document.getElementById("RRTButton").disabled = false;
+                }
+              } else {
+                alert('Source configuration Invalid');
+              }
+            }
+          }
+
+          function run(runrrt) {
+            console.log("prm requested");
+            let sourceNode = createIndexed(sourceConfig), goalNode = createIndexed(goalConfig);
+            points.push(sourceNode);
+            if (runrrt) {
+              rrtAstarLoop();
+            } else {
+              points.push(goalNode);
+              prmAstarLoop();
+            }
+
+
+            function uniformSampling() {
+              if (selectedRobotType === "Point_robot") {
+                while (true) {
+                  let x = 0.0 + Math.random() * 1000.0;
+                  let y = 0.0 + Math.random() * 1000.0;
+                  let config = new PointRobot(new Point(x, y));
+
+                  if (config.isValid()) {
+                    return config;
+                  }
+                }
+              } else if (selectedRobotType === "Rectangular_robot") {
+                while (true) {
+                  let x = 0.0 + Math.random() * 1000.0;
+                  let y = 0.0 + Math.random() * 1000.0;
+                  let theta = Math.PI * 2 * Math.random();
+                  let config = new RectangularRobot(new Point(x, y), theta);
+                  if (config.isValid()) {
+                    return config;
+                  }
+                }
+              }
+            }
+
+            function rrtAstarLoop() {
+              rrt(100);
+              let pathFound = aStar(sourceNode, goalNode);
+              if (pathFound) {
+                console.log("AStar Path Found");
+                return;
+              }
+              setTimeout(rrtAstarLoop, 200);
+            }
+            function prmAstarLoop() {
+              prm(10);
+              let pathFound = aStar(sourceNode, goalNode);
+              if (pathFound) {
+                console.log("AStar Path Found");
+                return;
+              }
+              setTimeout(prmAstarLoop, 200);
+            }
+            function prm(count) {
+              let i = 0;
+              while (i < count) {
+                i++;
+                let configNode = createIndexed(uniformSampling());
+                points.sort(function (uNode, vNode) {
+                  return uNode.config.dist(uNode.config, configNode.config) - uNode.config.dist(vNode.config, configNode.config);
+                });
+                for (var j = 0; j < k && j < points.length; j++) {
+                  let nearNode = points[j];
+                  if (validEdge(configNode, nearNode, prec)) {
+                    let edge = new Array(configNode, nearNode);
+                    edges.push(edge);
+                    configNode.addEdge(edge);
+                    nearNode.addEdge(edge);
+                  }
+                }
+                points.push(configNode);
+              }
+              //console.log("Vertice Count " + points.length);
+              //console.log("Edge Count " + edges.length);
+
+            }
+
+            function rrt(count) {
+              let i = 0;
+              while (i < count) {
+                i++;
+                let qRandNode = create(uniformSampling());
+                let minDist = Number.MAX_SAFE_INTEGER;
+                let nearestNode = null;
+                for (let i = 0; i < points.length; i++) {
+                  let node = points[i];
+                  let dist = qRandNode.config.dist(node.config, qRandNode.config);
+                  if (dist < minDist) {
+                    minDist = dist;
+                    nearestNode = node;
+                  }
+                }
+
+                let newConfig = configInDirectionOf(nearestNode, qRandNode, stepSize);
+                if (validEdge(new Node(newConfig), nearestNode, prec)) {
+                  let newNode = createIndexed(newConfig);
+                  points.push(newNode);
+                  newNode.setParent(nearestNode);
+                  nearestNode.addChild(newNode);
+                  let edge = new Array(newNode, nearestNode);
+                  edges.push(edge);
+                  newNode.addEdge(edge);
+                  nearestNode.addEdge(edge);
+                  if (newNode.config.dist(newNode.config, goalNode.config) < 3 * stepSize && validEdge(newNode, goalNode, prec)) {
+                    points.push(goalNode);
+                    goalNode.setParent(newNode);
+                    newNode.addChild(goalNode);
+                    let edge = new Array(newNode, goalNode);
+                    edges.push(edge);
+                    newNode.addEdge(edge);
+                    goalNode.addEdge(edge);
+                    console.log("connected to goal");
+                    break;
+                  }
+                }
+              }
+
+              //console.log("Vertice Count " + points.length);
+              //console.log("Edge Count " + edges.length);
+            }
+            function aStar(sourceNode, goalNode) {
+
+              let visited = new Array(getNodeCount()).fill(false);
+              let start = new State(sourceNode, 0, null, goalNode);
+
+              var queue = new PriorityQueue({comparator: function (stateA, stateB) {
+                  return stateA.fValue - stateB.fValue;
+                }});
+              queue.queue(start);
+              while (queue.length > 0) {
+                let s = queue.dequeue();
+                if (visited[s.node.index]) {
+                  continue;
+                }
+                visited[s.node.index] = true;
+                if (s.node == goalNode) {
+                  path = s;
+                  return true;
+                }
+                s.nextStates().forEach(state => {
+                  queue.queue(state);
+                });
+              }
+              return false;
+            }
+
+            function validEdge(uu, vv, prec) {
+              let dist = uu.config.dist(uu.config, vv.config);
+              if (selectedRobotType === "Point_robot") {
+                let u = uu.config.point;
+                let v = vv.config.point;
+                let valid = 1;
+                for (let lambda = prec; lambda < dist; lambda += prec) {
+                  let x = u.x + (v.x - u.x) * lambda / dist;
+                  let y = u.y + (v.y - u.y) * lambda / dist;
+                  let config = new PointRobot(new Point(x, y));
+                  if (!config.isValid()) {
+                    valid = 0;
+                    break;
+                  }
+                }
+                if (valid) {
+                  return true;
+                }
+                return false;
+              } else if (selectedRobotType === "Rectangular_robot") {
+                let u = uu.config.point;
+                let t1 = uu.config.theta;
+                let v = vv.config.point;
+                let t2 = vv.config.theta;
+                let valid = 1;
+                for (let lambda = prec; lambda < dist; lambda += prec) {
+                  let x = u.x + (v.x - u.x) * lambda / dist;
+                  let y = u.y + (v.y - u.y) * lambda / dist;
+                  let theta = t1 + piToPi(t2 - t1) * lambda / dist;
+                  let config = new RectangularRobot(new Point(x, y), theta);
+                  if (!config.isValid()) {
+                    valid = 0;
+                    break;
+                  }
+                }
+                if (valid) {
+                  return true;
+                }
+                return false;
+              }
+            }
+
+            function configInDirectionOf(nearestNode, randomNode, stepSize) {
+              if (selectedRobotType === "Point_robot") {
+                let dist = randomNode.config.dist(nearestNode.config, randomNode.config);
+                let lambda = Math.min(1.0, stepSize / dist);
+                let qNewX = nearestNode.config.point.x + (randomNode.config.point.x - nearestNode.config.point.x) * lambda;
+                let qNewY = nearestNode.config.point.y + (randomNode.config.point.y - nearestNode.config.point.y) * lambda;
+                return new PointRobot(new Point(qNewX, qNewY));
+              } else if (selectedRobotType === "Rectangular_robot") {
+                let dist = randomNode.config.dist(nearestNode.config, randomNode.config);
+                let lambda = Math.min(1.0, stepSize / dist);
+                let qNewX = nearestNode.config.point.x + (randomNode.config.point.x - nearestNode.config.point.x) * lambda;
+                let qNewY = nearestNode.config.point.y + (randomNode.config.point.y - nearestNode.config.point.y) * lambda;
+                let qNewTheta = nearestNode.config.theta + piToPi(randomNode.config.theta - nearestNode.config.theta) * lambda;
+                return new RectangularRobot(new Point(qNewX, qNewY), qNewTheta);
+              }
+            }
+
+          }
+  </script>
+</body>
